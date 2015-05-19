@@ -87,12 +87,13 @@ int __hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
 	unsigned long vpn, hash, slot;
 	unsigned long shift = mmu_psize_defs[MMU_PAGE_4K].shift;
 
+	pte_t pte;
 	/*
 	 * atomically mark the linux large page PTE busy and dirty
 	 */
 	do {
-		pte_t pte = READ_ONCE(*ptep);
 
+		pte = READ_ONCE(*ptep);
 		old_pte = pte_val(pte);
 		/* If PTE busy, retry the access */
 		if (unlikely(old_pte & H_PAGE_BUSY))
@@ -109,8 +110,8 @@ int __hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
 				H_PAGE_COMBO | H_PAGE_HASHPTE;
 		if (access & H_PAGE_RW)
 			new_pte |= H_PAGE_DIRTY;
-	} while (old_pte != __cmpxchg_u64((unsigned long *)ptep,
-					  old_pte, new_pte));
+	} while (pte != __cmpxchg_u64((unsigned long *)ptep,
+				      pte, __pte(new_pte)));
 	/*
 	 * Handle the subpage protection bits
 	 */
@@ -237,12 +238,13 @@ int __hash_page_64K(unsigned long ea, unsigned long access,
 	unsigned long vpn, hash, slot;
 	unsigned long shift = mmu_psize_defs[MMU_PAGE_64K].shift;
 
+	pte_t pte;
 	/*
 	 * atomically mark the linux large page PTE busy and dirty
 	 */
 	do {
-		pte_t pte = READ_ONCE(*ptep);
 
+		pte = READ_ONCE(*ptep);
 		old_pte = pte_val(pte);
 		/* If PTE busy, retry the access */
 		if (unlikely(old_pte & H_PAGE_BUSY))
@@ -265,8 +267,8 @@ int __hash_page_64K(unsigned long ea, unsigned long access,
 		new_pte = old_pte | H_PAGE_BUSY | H_PAGE_ACCESSED | H_PAGE_HASHPTE;
 		if (access & H_PAGE_RW)
 			new_pte |= H_PAGE_DIRTY;
-	} while (old_pte != __cmpxchg_u64((unsigned long *)ptep,
-					  old_pte, new_pte));
+	} while (pte != __cmpxchg_u64((unsigned long *)ptep,
+				      pte, __pte(new_pte)));
 
 	rflags = htab_convert_pte_flags(new_pte);
 
