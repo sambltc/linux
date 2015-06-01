@@ -23,12 +23,12 @@ bool pte_or_subptegroup_valid(pte_t pte, unsigned long index)
 {
 	unsigned long ptev = pte_val(pte);
 
-	if (!(ptev & _PAGE_HASHPTE))
+	if (!(ptev & H_PAGE_HASHPTE))
 		return false;
-	if (ptev & _PAGE_COMBO) {
+	if (ptev & H_PAGE_COMBO) {
 		unsigned long g_idx;
 
-		g_idx = (ptev & _PAGE_COMBO_VALID) >> _PAGE_F_GIX_SHIFT;
+		g_idx = (ptev & H_PAGE_COMBO_VALID) >> H_PAGE_F_GIX_SHIFT;
 		index = index >> 2;
 		if (g_idx & (0x1 << index))
 			return true;
@@ -45,12 +45,12 @@ static unsigned long mark_subptegroup_valid(unsigned long ptev, unsigned long in
 {
 	unsigned long g_idx;
 
-	if (!(ptev & _PAGE_COMBO))
+	if (!(ptev & H_PAGE_COMBO))
 		return ptev;
 	index = index >> 2;
 	g_idx = 0x1 << index;
 
-	return ptev | (g_idx << _PAGE_F_GIX_SHIFT);
+	return ptev | (g_idx << H_PAGE_F_GIX_SHIFT);
 }
 
 unsigned long pte_to_hidx(pte_t pte, unsigned long hash,
@@ -60,7 +60,7 @@ unsigned long pte_to_hidx(pte_t pte, unsigned long hash,
 	unsigned long want_v;
 
 	*valid = false;
-	if ((pte_val(pte) & _PAGE_COMBO)) {
+	if ((pte_val(pte) & H_PAGE_COMBO)) {
 		want_v = hpte_encode_avpn(vpn, MMU_PAGE_4K, ssize);
 		slot = ppc_md.get_hpte_slot(want_v, hash);
 		if (slot < 0)
@@ -68,9 +68,9 @@ unsigned long pte_to_hidx(pte_t pte, unsigned long hash,
 		*valid = true;
 		return slot;
 	}
-	if (pte_val(pte) & _PAGE_HASHPTE) {
+	if (pte_val(pte) & H_PAGE_HASHPTE) {
 		*valid = true;
-		return (pte_val(pte) >> _PAGE_F_GIX_SHIFT) & 0xf;
+		return (pte_val(pte) >> H_PAGE_F_GIX_SHIFT) & 0xf;
 	}
 	return 0;
 }
@@ -95,7 +95,7 @@ int __hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
 
 		old_pte = pte_val(pte);
 		/* If PTE busy, retry the access */
-		if (unlikely(old_pte & _PAGE_BUSY))
+		if (unlikely(old_pte & H_PAGE_BUSY))
 			return 0;
 		/* If PTE permissions don't match, take page fault */
 		if (unlikely(access & ~old_pte))
@@ -105,9 +105,10 @@ int __hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
 		 * a write access. Since this is 4K insert of 64K page size
 		 * also add _PAGE_COMBO
 		 */
-		new_pte = old_pte | _PAGE_BUSY | _PAGE_ACCESSED | _PAGE_COMBO | _PAGE_HASHPTE;
-		if (access & _PAGE_RW)
-			new_pte |= _PAGE_DIRTY;
+		new_pte = old_pte | H_PAGE_BUSY | H_PAGE_ACCESSED |
+				H_PAGE_COMBO | H_PAGE_HASHPTE;
+		if (access & H_PAGE_RW)
+			new_pte |= H_PAGE_DIRTY;
 	} while (old_pte != __cmpxchg_u64((unsigned long *)ptep,
 					  old_pte, new_pte));
 	/*
@@ -131,15 +132,15 @@ int __hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
 	/*
 	 *None of the sub 4k page is hashed
 	 */
-	if (!(old_pte & _PAGE_HASHPTE))
+	if (!(old_pte & H_PAGE_HASHPTE))
 		goto htab_insert_hpte;
 	/*
 	 * Check if the pte was already inserted into the hash table
 	 * as a 64k HW page, and invalidate the 64k HPTE if so.
 	 */
-	if (!(old_pte & _PAGE_COMBO)) {
+	if (!(old_pte & H_PAGE_COMBO)) {
 		flush_hash_page(vpn, __pte(old_pte), MMU_PAGE_64K, ssize, flags);
-		old_pte &= ~_PAGE_HASHPTE | _PAGE_F_GIX | _PAGE_F_SECOND;
+		old_pte &= ~H_PAGE_HASHPTE | H_PAGE_F_GIX | H_PAGE_F_SECOND;
 		goto htab_insert_hpte;
 	}
 	/*
@@ -150,10 +151,10 @@ int __hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
 	if (valid_slot) {
 		int ret;
 
-		if (hidx & _PTEIDX_SECONDARY)
+		if (hidx & H_PTEIDX_SECONDARY)
 			hash = ~hash;
 		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
-		slot += hidx & _PTEIDX_GROUP_IX;
+		slot += hidx & H_PTEIDX_GROUP_IX;
 
 		ret = ppc_md.hpte_updatepp(slot, rflags, vpn,
 					   MMU_PAGE_4K, MMU_PAGE_4K,
@@ -165,7 +166,7 @@ int __hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
 		if (ret == -1)
 			goto htab_insert_hpte;
 
-		*ptep = __pte(new_pte & ~_PAGE_BUSY);
+		*ptep = __pte(new_pte & ~H_PAGE_BUSY);
 		return 0;
 	}
 
@@ -173,7 +174,7 @@ htab_insert_hpte:
 	/*
 	 * handle _PAGE_4K_PFN case
 	 */
-	if (old_pte & _PAGE_4K_PFN) {
+	if (old_pte & H_PAGE_4K_PFN) {
 		/*
 		 * All the sub 4k page have the same
 		 * physical address.
@@ -220,8 +221,8 @@ repeat:
 		return -1;
 	}
 	new_pte = mark_subptegroup_valid(new_pte, subpg_index);
-	new_pte |=  _PAGE_HASHPTE;
-	*ptep = __pte(new_pte & ~_PAGE_BUSY);
+	new_pte |=  H_PAGE_HASHPTE;
+	*ptep = __pte(new_pte & ~H_PAGE_BUSY);
 	return 0;
 }
 
@@ -244,7 +245,7 @@ int __hash_page_64K(unsigned long ea, unsigned long access,
 
 		old_pte = pte_val(pte);
 		/* If PTE busy, retry the access */
-		if (unlikely(old_pte & _PAGE_BUSY))
+		if (unlikely(old_pte & H_PAGE_BUSY))
 			return 0;
 		/* If PTE permissions don't match, take page fault */
 		if (unlikely(access & ~old_pte))
@@ -254,16 +255,16 @@ int __hash_page_64K(unsigned long ea, unsigned long access,
 		 * If so, bail out and refault as a 4k page
 		 */
 		if (!mmu_has_feature(MMU_FTR_CI_LARGE_PAGE) &&
-		    unlikely(old_pte & _PAGE_NO_CACHE))
+		    unlikely(old_pte & H_PAGE_NO_CACHE))
 			return 0;
 		/*
 		 * Try to lock the PTE, add ACCESSED and DIRTY if it was
 		 * a write access. Since this is 4K insert of 64K page size
 		 * also add _PAGE_COMBO
 		 */
-		new_pte = old_pte | _PAGE_BUSY | _PAGE_ACCESSED | _PAGE_HASHPTE;
-		if (access & _PAGE_RW)
-			new_pte |= _PAGE_DIRTY;
+		new_pte = old_pte | H_PAGE_BUSY | H_PAGE_ACCESSED | H_PAGE_HASHPTE;
+		if (access & H_PAGE_RW)
+			new_pte |= H_PAGE_DIRTY;
 	} while (old_pte != __cmpxchg_u64((unsigned long *)ptep,
 					  old_pte, new_pte));
 
@@ -274,22 +275,22 @@ int __hash_page_64K(unsigned long ea, unsigned long access,
 		rflags = hash_page_do_lazy_icache(rflags, __pte(old_pte), trap);
 
 	vpn  = hpt_vpn(ea, vsid, ssize);
-	if (unlikely(old_pte & _PAGE_HASHPTE)) {
+	if (unlikely(old_pte & H_PAGE_HASHPTE)) {
 		/*
 		 * There MIGHT be an HPTE for this pte
 		 */
 		hash = hpt_hash(vpn, shift, ssize);
-		if (old_pte & _PAGE_F_SECOND)
+		if (old_pte & H_PAGE_F_SECOND)
 			hash = ~hash;
 		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
-		slot += (old_pte & _PAGE_F_GIX) >> _PAGE_F_GIX_SHIFT;
+		slot += (old_pte & H_PAGE_F_GIX) >> H_PAGE_F_GIX_SHIFT;
 
 		if (ppc_md.hpte_updatepp(slot, rflags, vpn, MMU_PAGE_64K,
 					 MMU_PAGE_64K, ssize, flags) == -1)
-			old_pte &= ~_PAGE_HPTEFLAGS;
+			old_pte &= ~H_PAGE_HPTEFLAGS;
 	}
 
-	if (likely(!(old_pte & _PAGE_HASHPTE))) {
+	if (likely(!(old_pte & H_PAGE_HASHPTE))) {
 
 		pa = pte_pfn(__pte(old_pte)) << PAGE_SHIFT;
 		hash = hpt_hash(vpn, shift, ssize);
@@ -329,9 +330,9 @@ repeat:
 					   MMU_PAGE_64K, MMU_PAGE_64K, old_pte);
 			return -1;
 		}
-		new_pte = (new_pte & ~_PAGE_HPTEFLAGS) | _PAGE_HASHPTE;
-		new_pte |= (slot << _PAGE_F_GIX_SHIFT) & (_PAGE_F_SECOND | _PAGE_F_GIX);
+		new_pte = (new_pte & ~H_PAGE_HPTEFLAGS) | H_PAGE_HASHPTE;
+		new_pte |= (slot << H_PAGE_F_GIX_SHIFT) & (H_PAGE_F_SECOND | H_PAGE_F_GIX);
 	}
-	*ptep = __pte(new_pte & ~_PAGE_BUSY);
+	*ptep = __pte(new_pte & ~H_PAGE_BUSY);
 	return 0;
 }

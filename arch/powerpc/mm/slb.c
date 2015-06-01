@@ -124,8 +124,8 @@ static void __slb_flush_and_rebolt(void)
 		     /* Slot 2 - kernel stack */
 		     "slbmte	%2,%3\n"
 		     "isync"
-		     :: "r"(mk_vsid_data(VMALLOC_START, mmu_kernel_ssize, vflags)),
-		        "r"(mk_esid_data(VMALLOC_START, mmu_kernel_ssize, 1)),
+		     :: "r"(mk_vsid_data(H_VMALLOC_START, mmu_kernel_ssize, vflags)),
+		        "r"(mk_esid_data(H_VMALLOC_START, mmu_kernel_ssize, 1)),
 		        "r"(ksp_vsid_data),
 		        "r"(ksp_esid_data)
 		     : "memory");
@@ -151,7 +151,7 @@ void slb_vmalloc_update(void)
 	unsigned long vflags;
 
 	vflags = SLB_VSID_KERNEL | mmu_psize_defs[mmu_vmalloc_psize].sllp;
-	slb_shadow_update(VMALLOC_START, mmu_kernel_ssize, vflags, 1);
+	slb_shadow_update(H_VMALLOC_START, mmu_kernel_ssize, vflags, 1);
 	slb_flush_and_rebolt();
 }
 
@@ -327,7 +327,7 @@ void slb_initialize(void)
 	asm volatile("slbmte  %0,%0"::"r" (0) : "memory");
 	asm volatile("isync; slbia; isync":::"memory");
 	create_shadowed_slbe(PAGE_OFFSET, mmu_kernel_ssize, lflags, 0);
-	create_shadowed_slbe(VMALLOC_START, mmu_kernel_ssize, vflags, 1);
+	create_shadowed_slbe(H_VMALLOC_START, mmu_kernel_ssize, vflags, 1);
 
 	/* For the boot cpu, we're running on the stack in init_thread_union,
 	 * which is in the first segment of the linear mapping, and also

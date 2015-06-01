@@ -26,8 +26,6 @@
 #define IOREMAP_BASE	(PHB_IO_END)
 #define IOREMAP_END	(KERN_VIRT_START + KERN_VIRT_SIZE)
 
-#define vmemmap			((struct page *)VMEMMAP_BASE)
-
 /* Advertise special mapping type for AGP */
 #define HAVE_PAGE_AGP
 
@@ -35,6 +33,68 @@
 #define __HAVE_ARCH_PTE_SPECIAL
 
 #ifndef __ASSEMBLY__
+#ifdef CONFIG_PPC_BOOK3S_64
+extern struct page *vmemmap;
+extern unsigned long __vmalloc_start;
+extern unsigned long __vmalloc_end;
+#define VMALLOC_START	__vmalloc_start
+#define VMALLOC_END	__vmalloc_end
+
+extern unsigned long __kernel_virt_start;
+extern unsigned long __kernel_virt_size;
+#define KERN_VIRT_START __kernel_virt_start
+#define KERN_VIRT_SIZE  __kernel_virt_size
+
+extern unsigned long __ptrs_per_pte;
+#define PTRS_PER_PTE __ptrs_per_pte
+
+extern unsigned long __ptrs_per_pmd;
+#define PTRS_PER_PMD __ptrs_per_pmd
+
+extern unsigned long __pmd_shift;
+#define PMD_SHIFT	__pmd_shift
+#define PMD_SIZE	(1UL << __pmd_shift)
+#define PMD_MASK	(~(PMD_SIZE -1 ))
+
+#ifndef __PAGETABLE_PUD_FOLDED
+extern unsigned long __pud_shift;
+#define PUD_SHIFT	__pud_shift
+#define PUD_SIZE	(1UL << __pud_shift)
+#define PUD_MASK	(~(PUD_SIZE -1 ))
+#endif
+
+extern unsigned long __pgdir_shift;
+#define PGDIR_SHIFT	__pgdir_shift
+#define PGDIR_SIZE	(1UL << __pgdir_shift)
+#define PGDIR_MASK	(~(PGDIR_SIZE -1 ))
+
+extern pgprot_t __kernel_page_prot;
+#define PAGE_KERNEL __kernel_page_prot
+
+extern pgprot_t __page_none;
+#define PAGE_NONE  __page_none
+
+extern pgprot_t __page_kernel_exec;
+#define PAGE_KERNEL_EXEC __page_kernel_exec
+
+extern unsigned long __page_no_cache;
+#define _PAGE_NO_CACHE  __page_no_cache
+
+extern unsigned long __page_guarded;
+#define _PAGE_GUARDED  __page_guarded
+
+extern unsigned long __page_user;
+#define _PAGE_USER __page_user
+
+extern unsigned long __page_coherent;
+#define _PAGE_COHERENT __page_coherent
+
+extern unsigned long __page_present;
+#define _PAGE_PRESENT __page_present
+
+#endif /* CONFIG_PPC_BOOK3S_64 */
+extern unsigned long ioremap_bot;
+
 /*
  * This is the default implementation of various PTE accessors, it's
  * used in all cases except Book3S with 64K pages where we have a
@@ -45,9 +105,9 @@ static inline unsigned long pte_to_hidx(pte_t pte, unsigned long hash,
 					unsigned long vpn, int ssize, bool *valid)
 {
 	*valid = false;
-	if (pte_val(pte) & _PAGE_HASHPTE) {
+        if (pte_val(pte) & H_PAGE_HASHPTE) {
 		*valid = true;
-		return (pte_val(pte) >> _PAGE_F_GIX_SHIFT) & 0xf;
+                return (pte_val(pte) >> H_PAGE_F_GIX_SHIFT) & 0xf;
 	}
 	return 0;
 }
@@ -216,7 +276,7 @@ static inline int pmd_protnone(pmd_t pmd)
 
 static inline pmd_t pmd_mkhuge(pmd_t pmd)
 {
-	return __pmd(pmd_val(pmd) | (_PAGE_PTE | _PAGE_THP_HUGE));
+	return __pmd(pmd_val(pmd) | (H_PAGE_PTE | H_PAGE_THP_HUGE));
 }
 
 #define __HAVE_ARCH_PMDP_SET_ACCESS_FLAGS
