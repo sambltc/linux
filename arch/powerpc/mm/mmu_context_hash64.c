@@ -30,7 +30,7 @@
 static DEFINE_SPINLOCK(mmu_context_lock);
 static DEFINE_IDA(mmu_context_ida);
 
-int __init_new_context(void)
+int __hlinit_new_context(void)
 {
 	int index;
 	int err;
@@ -59,7 +59,7 @@ again:
 }
 EXPORT_SYMBOL_GPL(__init_new_context);
 
-int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
+int hlinit_new_context(struct task_struct *tsk, struct mm_struct *mm)
 {
 	int index;
 
@@ -95,7 +95,7 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 	return 0;
 }
 
-void __destroy_context(int context_id)
+void __hldestroy_context(int context_id)
 {
 	spin_lock(&mmu_context_lock);
 	ida_remove(&mmu_context_ida, context_id);
@@ -133,7 +133,7 @@ static inline void destroy_pagetable_page(struct mm_struct *mm)
 #endif
 
 
-void destroy_context(struct mm_struct *mm)
+void hldestroy_context(struct mm_struct *mm)
 {
 #ifdef CONFIG_SPAPR_TCE_IOMMU
 	mm_iommu_cleanup(&mm->context);
