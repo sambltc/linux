@@ -70,6 +70,8 @@ extern void __setup_cpu_power7(unsigned long offset, struct cpu_spec* spec);
 extern void __restore_cpu_power7(void);
 extern void __setup_cpu_power8(unsigned long offset, struct cpu_spec* spec);
 extern void __restore_cpu_power8(void);
+extern void __setup_cpu_power9(unsigned long offset, struct cpu_spec* spec);
+extern void __restore_cpu_power9(void);
 extern void __restore_cpu_a2(void);
 extern void __flush_tlb_power7(unsigned int action);
 extern void __flush_tlb_power8(unsigned int action);
@@ -498,6 +500,24 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.flush_tlb		= __flush_tlb_power8,
 		.machine_check_early	= __machine_check_early_realmode_p8,
 		.platform		= "power8",
+	},
+	{	/*  Hacked up Power9 */
+		.pvr_mask		= 0xffff0000,
+		.pvr_value		= 0x004e0000,
+		.cpu_name		= "POWER9 (mambo)",
+		.cpu_features		= CPU_FTRS_POWER7,
+		.cpu_user_features	= COMMON_USER_POWER7,
+		.cpu_user_features2	= COMMON_USER2_POWER7,
+		.mmu_features		= MMU_FTRS_POWER7 | MMU_FTR_RADIX,
+		.icache_bsize		= 128,
+		.dcache_bsize		= 128,
+		.oprofile_type		= PPC_OPROFILE_POWER4,
+		.oprofile_cpu_type	= "ppc64/ibm-compat-v1",
+		.cpu_setup		= __setup_cpu_power9,
+		.cpu_restore		= __restore_cpu_power9,
+		.flush_tlb		= __flush_tlb_power7,
+		.machine_check_early	= __machine_check_early_realmode_p7,
+		.platform		= "power9",
 	},
 	{	/* Cell Broadband Engine */
 		.pvr_mask		= 0xffff0000,
