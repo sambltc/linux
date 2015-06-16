@@ -139,10 +139,19 @@ static void init_radix_pgtable(void)
 	unsigned long rts_field;
 	struct memblock_region *reg;
 	unsigned long linear_page_size;
+	unsigned long total_size;
 
 	pr_info("Mapping linear mapping in radix tree...\n");
-
-	if (mmu_psize_defs[MMU_PAGE_1G].shift) {
+	total_size = memblock_phys_mem_size();
+	if (total_size < PUD_SIZE)
+		if (total_size < PMD_SIZE)
+			linear_page_size = PAGE_SIZE;
+		else if (mmu_psize_defs[MMU_PAGE_2M].shift) {
+			linear_page_size = PMD_SIZE;
+			mmu_linear_psize = MMU_PAGE_2M;
+		} else
+			linear_page_size = PAGE_SIZE;
+	else if (mmu_psize_defs[MMU_PAGE_1G].shift) {
 		linear_page_size = PUD_SIZE;
 		mmu_linear_psize = MMU_PAGE_1G;
 	} else if (mmu_psize_defs[MMU_PAGE_2M].shift) {
@@ -154,7 +163,9 @@ static void init_radix_pgtable(void)
 	pr_info("Mapping kernel with page_size 0x%lx\n", linear_page_size);
 	/* We don't support slb for radix */
 	mmu_slb_size = 0;
-	/* Create the linear mapping, using standard page size for now */
+	/*
+	 * Create the linear mapping, using standard page size for now
+	 */
 	for_each_memblock(memory, reg) {
 		base = _ALIGN_UP(reg->base, linear_page_size);
 		end = _ALIGN_DOWN(reg->base + reg->size, linear_page_size);
@@ -261,17 +272,15 @@ void __init rearly_init_mmu(void)
 	mmu_psize_defs[MMU_PAGE_64K].shift = 16;
 	mmu_psize_defs[MMU_PAGE_64K].sllp = 5;
 
-	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
-		/* 2M */
-		mmu_psize_defs[MMU_PAGE_2M].shift = 21;
-		/* FIXME!! Fix sllp based on device tree */
-		mmu_psize_defs[MMU_PAGE_2M].sllp = 5;
+	/* 2M */
+	mmu_psize_defs[MMU_PAGE_2M].shift = 21;
+	/* FIXME!! Fix sllp based on device tree */
+	mmu_psize_defs[MMU_PAGE_2M].sllp = 5;
 
-		/* 1G */
-		mmu_psize_defs[MMU_PAGE_1G].shift = 30;
-		/* FIXME!! Fix sllp based on device tree */
-		mmu_psize_defs[MMU_PAGE_1G].sllp = 5;
-	}
+	/* 1G */
+	mmu_psize_defs[MMU_PAGE_1G].shift = 30;
+	/* FIXME!! Fix sllp based on device tree */
+	mmu_psize_defs[MMU_PAGE_1G].sllp = 5;
 	init_radix_pgtable();
 }
 
