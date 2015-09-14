@@ -16,12 +16,32 @@
 #include <asm/machdep.h>
 #include <asm/mmu.h>
 
+real_pte_t __real_pte(unsigned long addr, pte_t pte, pte_t *ptep)
+{
+	int indx;
+	real_pte_t rpte;
+	pte_t *pte_headp;
+
+	rpte.pte = pte;
+	rpte.hidx = NULL;
+	if (pte_val(pte) & _PAGE_COMBO) {
+		indx = pte_index(addr);
+		pte_headp = ptep - indx;
+		/*
+		 * Make sure we order the hidx load against the _PAGE_COMBO
+		 * check. The store side ordering is done in __hash_page_4K
+		 */
+		smp_rmb();
+		rpte.hidx = (unsigned char *)(pte_headp + PTRS_PER_PTE) + (16 * indx);
+	}
+	return rpte;
+}
+
 int __hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
 		   pte_t *ptep, unsigned long trap, unsigned long flags,
 		   int ssize, int subpg_prot)
 {
 	real_pte_t rpte;
-	unsigned long *hidxp;
 	unsigned long hpte_group;
 	unsigned int subpg_index;
 	unsigned long shift = 12; /* 4K */
@@ -90,7 +110,10 @@ int __hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
 
 	subpg_index = (ea & (PAGE_SIZE - 1)) >> shift;
 	vpn  = hpt_vpn(ea, vsid, ssize);
-	rpte = __real_pte(ea, __pte(old_pte), ptep);
+	if (!(old_pte & _PAGE_COMBO))
+		rpte = __real_pte(ea, __pte(old_pte | _PAGE_COMBO), ptep);
+	else
+		rpte = __real_pte(ea, __pte(old_pte), ptep);
 	/*
 	 *None of the sub 4k page is hashed
 	 */
@@ -188,11 +211,8 @@ repeat:
 	 * Since we have _PAGE_BUSY set on ptep, we can be sure
 	 * nobody is undating hidx.
 	 */
-	hidxp = (unsigned long *)(ptep + PTRS_PER_PTE);
-	/* __real_pte use pte_val() any idea why ? FIXME!! */
-	rpte.hidx &= ~(0xfUL << (subpg_index << 2));
-	*hidxp = rpte.hidx  | (slot << (subpg_index << 2));
-	new_pte |= (_PAGE_HPTE_SUB0 >> subpg_index);
+	rpte.hidx[subpg_index] = (unsigned char)(slot << 4 | 0x1 << 3);
+	new_pte |= _PAGE_HPTE_SUB0;
 	/*
 	 * check __real_pte for details on matching smp_rmb()
 	 */

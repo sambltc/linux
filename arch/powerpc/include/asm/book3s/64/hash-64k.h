@@ -78,33 +78,39 @@
  * generic accessors and iterators here
  */
 #define __real_pte __real_pte
-static inline real_pte_t __real_pte(unsigned long addr, pte_t pte, pte_t *ptep)
-{
-	real_pte_t rpte;
-
-	rpte.pte = pte;
-	rpte.hidx = 0;
-	if (pte_val(pte) & _PAGE_COMBO) {
-		/*
-		 * Make sure we order the hidx load against the _PAGE_COMBO
-		 * check. The store side ordering is done in __hash_page_4K
-		 */
-		smp_rmb();
-		rpte.hidx = pte_val(*((ptep) + PTRS_PER_PTE));
-	}
-	return rpte;
-}
-
+extern real_pte_t __real_pte(unsigned long addr, pte_t pte, pte_t *ptep);
 static inline unsigned long __rpte_to_hidx(real_pte_t rpte, unsigned long index)
 {
 	if ((pte_val(rpte.pte) & _PAGE_COMBO))
-		return (rpte.hidx >> (index<<2)) & 0xf;
+		return (unsigned long) rpte.hidx[index] >> 4;
 	return (pte_val(rpte.pte) >> 12) & 0xf;
 }
 
-#define __rpte_to_pte(r)	((r).pte)
-#define __rpte_sub_valid(rpte, index) \
-	(pte_val(rpte.pte) & (_PAGE_HPTE_SUB0 >> (index)))
+static inline pte_t __rpte_to_pte(real_pte_t rpte)
+{
+	return rpte.pte;
+}
+/*
+ * we look at the second half of the pte page to determine whether
+ * the sub 4k hpte is valid. We use 8 bits per each index, and we have
+ * 16 index mapping full 64K page. Hence for each
+ * 64K linux page we use 128 bit from the second half of pte page.
+ * The encoding in the second half of the page is as below:
+ * [ index 15 ] .........................[index 0]
+ * [bit 127 ..................................bit 0]
+ * fomat of each index
+ * bit 7 ........ bit0
+ * [one bit secondary][ 3 bit hidx][1 bit valid][000]
+ */
+static inline bool __rpte_sub_valid(real_pte_t rpte, unsigned long index)
+{
+	unsigned char index_val = rpte.hidx[index];
+
+	if ((index_val >> 3) & 0x1)
+		return true;
+	return false;
+}
+
 /*
  * Trick: we set __end to va + 64k, which happens works for
  * a 16M page as well as we want only one iteration
