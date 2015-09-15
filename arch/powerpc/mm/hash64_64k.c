@@ -125,7 +125,7 @@ int __hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
 	 */
 	if (!(old_pte & _PAGE_COMBO)) {
 		flush_hash_page(vpn, rpte, MMU_PAGE_64K, ssize, flags);
-		old_pte &= ~_PAGE_HPTE_SUB;
+		old_pte &= ~_PAGE_HASHPTE | _PAGE_F_GIX | _PAGE_F_SECOND;
 		goto htab_insert_hpte;
 	}
 	/*
@@ -212,7 +212,7 @@ repeat:
 	 * nobody is undating hidx.
 	 */
 	rpte.hidx[subpg_index] = (unsigned char)(slot << 4 | 0x1 << 3);
-	new_pte |= _PAGE_HPTE_SUB0;
+	new_pte |= _PAGE_HASHPTE;
 	/*
 	 * check __real_pte for details on matching smp_rmb()
 	 */

@@ -81,7 +81,11 @@
 #define _PAGE_DIRTY		0x0080 /* C: page changed */
 #define _PAGE_ACCESSED		0x0100 /* R: page referenced */
 #define _PAGE_RW		0x0200 /* software: user write access allowed */
+#define _PAGE_HASHPTE		0x0400 /* software: pte has an associated HPTE */
 #define _PAGE_BUSY		0x0800 /* software: PTE & hash are busy */
+#define _PAGE_F_GIX		0x7000 /* full page: hidx bits */
+#define _PAGE_F_SECOND		0x8000 /* Whether to use secondary hash or not */
+#define _PAGE_SPECIAL		0x10000 /* software: special page */
 
 /* No separate kernel read-only */
 #define _PAGE_KERNEL_RW		(_PAGE_RW | _PAGE_DIRTY) /* user access blocked by key */
