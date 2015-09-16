@@ -84,6 +84,7 @@
 #define _PAGE_HASHPTE		0x00400 /* software: pte has an associated HPTE */
 #define _PAGE_BUSY		0x00800 /* software: PTE & hash are busy */
 #define _PAGE_F_GIX		0x07000 /* full page: hidx bits */
+#define _PAGE_F_GIX_SHIFT	12
 #define _PAGE_F_SECOND		0x08000 /* Whether to use secondary hash or not */
 #define _PAGE_SPECIAL		0x10000 /* software: special page */
 

@@ -35,7 +35,8 @@
 #define _PAGE_4K_PFN	0x00040000 /* PFN is for a single 4k page */
 
 /* PTE flags to conserve for HPTE identification */
-#define _PAGE_HPTEFLAGS (_PAGE_BUSY | _PAGE_HASHPTE | _PAGE_COMBO)
+#define _PAGE_HPTEFLAGS (_PAGE_BUSY | _PAGE_F_SECOND | \
+			 _PAGE_F_GIX | _PAGE_HASHPTE | _PAGE_COMBO)
 
 /* Shift to put page number into pte.
  *
