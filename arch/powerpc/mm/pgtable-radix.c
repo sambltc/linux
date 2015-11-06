@@ -278,3 +278,57 @@ void rsetup_initial_memory_limit(phys_addr_t first_memblock_base,
 	/* Finally limit subsequent allocations */
 	memblock_set_current_limit(first_memblock_base + first_memblock_size);
 }
+
+static void pgd_ctor(void *addr)
+{
+	memset(addr, 0, RPGD_TABLE_SIZE);
+}
+
+static void pmd_ctor(void *addr)
+{
+	memset(addr, 0, RPMD_TABLE_SIZE);
+}
+
+void rpgtable_cache_init(void)
+{
+	pgtable_cache_add(RPGD_INDEX_SIZE, pgd_ctor);
+	pgtable_cache_add(RPMD_INDEX_SIZE, pmd_ctor);
+
+	if (!PGT_CACHE(RPGD_INDEX_SIZE) || !PGT_CACHE(RPMD_INDEX_SIZE))
+		panic("Couldn't allocate pgtable caches");
+	/* PUD_INDEX == PMD_INDEX */
+	if (RPUD_INDEX_SIZE && !PGT_CACHE(RPUD_INDEX_SIZE))
+		panic("Couldn't allocate pud pgtable caches");
+}
+
+pgtable_t rpte_alloc_one(struct mm_struct *mm, unsigned long address)
+{
+	struct page *page;
+
+	page = alloc_page(PGALLOC_GFP);
+	if (!page)
+		return NULL;
+	if (!pgtable_page_ctor(page)) {
+		__free_page(page);
+		return NULL;
+	}
+	return page_address(page);
+}
+
+static pgprot_t radix_protection_map[16] = {
+	__RP000, __RP001, __RP010, __RP011, __RP100, __RP101, __RP110, __RP111,
+	__RS000, __RS001, __RS010, __RS011, __RS100, __RS101, __RS110, __RS111
+};
+
+pgprot_t rvm_get_page_prot(unsigned long vm_flags)
+{
+	pgprot_t prot_soa = __pgprot(0);
+
+	if (vm_flags & VM_SAO)
+		prot_soa = __pgprot(_RPAGE_SAO);
+
+	return __pgprot(pgprot_val(radix_protection_map[vm_flags &
+				(VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)]) |
+			pgprot_val(prot_soa));
+}
+EXPORT_SYMBOL(rvm_get_page_prot);
