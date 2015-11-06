@@ -679,26 +679,36 @@ struct page *realmode_pfn_to_page(unsigned long pfn);
  */
 static inline int pmd_trans_huge(pmd_t pmd)
 {
+	if (radix_enabled())
+		return rpmd_trans_huge(pmd);
 	return hlpmd_trans_huge(pmd);
 }
 
 static inline int pmd_trans_splitting(pmd_t pmd)
 {
+	if (radix_enabled())
+		return rpmd_trans_splitting(pmd);
 	return hlpmd_trans_splitting(pmd);
 }
 
 static inline pmd_t pfn_pmd(unsigned long pfn, pgprot_t pgprot)
 {
+	if (radix_enabled())
+		return pfn_rpmd(pfn, pgprot);
 	return pfn_hlpmd(pfn, pgprot);
 }
 
 static inline pmd_t mk_pmd(struct page *page, pgprot_t pgprot)
 {
+	if (radix_enabled())
+		return mk_rpmd(page, pgprot);
 	return mk_hlpmd(page, pgprot);
 }
 
 static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 {
+	if (radix_enabled())
+		return rpmd_modify(pmd, newprot);
 	return hlpmd_modify(pmd, newprot);
 }
 /*
@@ -715,32 +725,44 @@ static inline void update_mmu_cache_pmd(struct vm_area_struct *vma,
 
 static inline int has_transparent_hugepage(void)
 {
+	if (radix_enabled())
+		return r_has_transparent_hugepage();
 	return hl_has_transparent_hugepage();
 }
 
 static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 			      pmd_t *pmdp, pmd_t pmd)
 {
+	if (radix_enabled())
+		return set_rpmd_at(mm, addr, pmdp, pmd);
 	return set_hlpmd_at(mm, addr, pmdp, pmd);
 }
 
 static inline int pmd_large(pmd_t pmd)
 {
+	if (radix_enabled())
+		return rpmd_large(pmd);
 	return hlpmd_large(pmd);
 }
 
 static inline pmd_t pmd_mknotpresent(pmd_t pmd)
 {
+	if (radix_enabled())
+		return rpmd_mknotpresent(pmd);
 	return hlpmd_mknotpresent(pmd);
 }
 
 static inline pmd_t pmd_mksplitting(pmd_t pmd)
 {
+	if (radix_enabled())
+		return rpmd_mksplitting(pmd);
 	return hlpmd_mksplitting(pmd);
 }
 
 static inline pmd_t pmd_mkhuge(pmd_t pmd)
 {
+	if (radix_enabled())
+		return rpmd_mkhuge(pmd);
 	return hlpmd_mkhuge(pmd);
 }
 
@@ -755,6 +777,8 @@ static inline int pmd_same(pmd_t pmd_a, pmd_t pmd_b)
 static inline int __pmdp_test_and_clear_young(struct mm_struct *mm,
 					      unsigned long addr, pmd_t *pmdp)
 {
+	if (radix_enabled())
+		return __rpmdp_test_and_clear_young(mm, addr, pmdp);
 	return __hlpmdp_test_and_clear_young(mm, addr, pmdp);
 }
 
@@ -762,6 +786,8 @@ static inline int __pmdp_test_and_clear_young(struct mm_struct *mm,
 static inline void pmdp_set_wrprotect(struct mm_struct *mm, unsigned long addr,
 				      pmd_t *pmdp)
 {
+	if (radix_enabled())
+		return rpmdp_set_wrprotect(mm, addr, pmdp);
 	return hlpmdp_set_wrprotect(mm, addr, pmdp);
 }
 
@@ -806,6 +832,8 @@ static inline int pmdp_set_access_flags(struct vm_area_struct *vma,
 					unsigned long address, pmd_t *pmdp,
 					pmd_t entry, int dirty)
 {
+	if (radix_enabled())
+		return rpmdp_set_access_flags(vma, address, pmdp, entry, dirty);
 	return hlpmdp_set_access_flags(vma, address, pmdp, entry, dirty);
 }
 
@@ -813,6 +841,8 @@ static inline int pmdp_set_access_flags(struct vm_area_struct *vma,
 static inline int pmdp_test_and_clear_young(struct vm_area_struct *vma,
 					    unsigned long address, pmd_t *pmdp)
 {
+	if (radix_enabled())
+		return rpmdp_test_and_clear_young(vma, address, pmdp);
 	return hlpmdp_test_and_clear_young(vma, address, pmdp);
 }
 
@@ -821,6 +851,8 @@ static inline int pmdp_test_and_clear_young(struct vm_area_struct *vma,
 static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
 					    unsigned long addr, pmd_t *pmdp)
 {
+	if (radix_enabled())
+		return rpmdp_huge_get_and_clear(mm, addr, pmdp);
 	return hlpmdp_huge_get_and_clear(mm, addr, pmdp);
 }
 
@@ -828,12 +860,17 @@ static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
 static inline void pmdp_splitting_flush(struct vm_area_struct *vma,
 					unsigned long address, pmd_t *pmdp)
 {
+	if (radix_enabled())
+		return rpmdp_splitting_flush(vma, address, pmdp);
 	return hlpmdp_splitting_flush(vma, address, pmdp);
 }
 
 static inline pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
 					unsigned long address, pmd_t *pmdp)
 {
+
+	if (radix_enabled())
+		return rpmdp_collapse_flush(vma, address, pmdp);
 	return hlpmdp_collapse_flush(vma, address, pmdp);
 }
 #define pmdp_collapse_flush pmdp_collapse_flush
@@ -842,12 +879,18 @@ static inline pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
 static inline void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
 					      pgtable_t pgtable)
 {
+
+	if (radix_enabled())
+		return rpgtable_trans_huge_deposit(mm, pmdp, pgtable);
 	return hlpgtable_trans_huge_deposit(mm, pmdp, pgtable);
 }
 
 #define __HAVE_ARCH_PGTABLE_WITHDRAW
 static inline pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
 {
+
+	if (radix_enabled())
+		return rpgtable_trans_huge_withdraw(mm, pmdp);
 	return hlpgtable_trans_huge_withdraw(mm, pmdp);
 }
 
@@ -855,6 +898,9 @@ static inline pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t 
 static inline void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
 				   pmd_t *pmdp)
 {
+
+	if (radix_enabled())
+		return rpmdp_invalidate(vma, address, pmdp);
 	return hlpmdp_invalidate(vma, address, pmdp);
 }
 
